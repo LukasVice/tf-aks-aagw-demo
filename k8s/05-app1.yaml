@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app1-deployment
+spec:
+  selector:
+    matchLabels:
+      app: app1
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: app1
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.16.1
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app1-service
+spec:
+  ports:
+    - name: nginx
+      port: 80
+      protocol: TCP
+      targetPort: 80
+  type: ClusterIP
+  selector:
+    app: app1
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: app1-ingress
+  labels:
+    app: app1
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+spec:
+  rules:
+    - host: ******
+      http:
+        paths:
+          - backend:
+              serviceName: app1-service
+              servicePort: 80

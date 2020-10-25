@@ -1,0 +1,12 @@
+verbosityLevel: 3
+appgw:
+  subscriptionId: ******
+  resourceGroup: k8s-tf-rg
+  name: k8s-tf-agw
+  usePrivateIP: false
+  shared: false
+armAuth:
+  type: servicePrincipal
+  secretJSON: ******
+rbac:
+  enabled: true
