@@ -3,6 +3,7 @@
 ## Requirements
 
 - Azure CLI
+- terraform
 - kubectl
 - helm
 
