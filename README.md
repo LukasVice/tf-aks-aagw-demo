@@ -16,14 +16,14 @@
 
   `az ad sp create-for-rbac --skip-assignment`
 
-  - Copy appId (client-id) and password (client-secret) to [tf/terraform.tfvars](tf/terraform.tfvars)
-  - Complete [k8s/aadpodidentity.yaml](k8s/aadpodidentity.yaml): ClientSecret (base64 client-secret), TenantID, ClientID
+  - Copy appId (client-id) and password (client-secret) to [terraform.tfvars](terraform.tfvars)
+  - Complete [k8s/01-aadpodidentity.yaml](k8s/01-aadpodidentity.yaml): ClientSecret (base64 client-secret), TenantID, ClientID
 
 - Get the service principal's object id with
 
   `az ad sp show --id <appId>`
 
-  Copy the object id to [tf/terraform.tfvars](tf/terraform.tfvars)
+  Copy the object id to [terraform.tfvars](terraform.tfvars)
 
 - Complete helm config
 
