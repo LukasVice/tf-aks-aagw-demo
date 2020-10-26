@@ -34,14 +34,17 @@ variable "aks_sp_client_secret" {
   description = "AKS service principal client secret"
 }
 
-variable "aks_sp_object_id" {
-  description = "AKS service principal object id"
-}
-
 variable "k8s_node_count" {
   default = 1
 }
 
 variable "k8s_vm_size" {
   default = "Standard_B2s"
+}
+
+### Helm
+
+variable "k8s_kube_config" {
+  description = "Path to Kube Config File"
+  default="kube_config"
 }

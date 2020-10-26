@@ -27,11 +27,6 @@ resource "azurerm_subnet" "agw" {
   address_prefixes     = ["10.1.0.0/24"]
 }
 
-#resource "azurerm_subnet_route_table_association" "agw" {
-#  subnet_id      = azurerm_subnet.agw.id
-#  route_table_id = azurerm_route_table.default.id
-#}
-
 resource "azurerm_public_ip" "agw" {
   name                = "${var.prefix}-agw-pip"
   location            = azurerm_resource_group.rg.location
@@ -110,6 +105,10 @@ resource "azurerm_application_gateway" "agw" {
 
 ### Azure Kubernetes Service
 
+data "azuread_service_principal" "ad" {
+  application_id = var.aks_sp_client_id
+}
+
 resource "azurerm_subnet" "aks" {
   name                 = "aks-subnet"
   resource_group_name  = azurerm_resource_group.rg.name
@@ -117,15 +116,10 @@ resource "azurerm_subnet" "aks" {
   address_prefixes     = ["10.240.0.0/16"]
 }
 
-#resource "azurerm_subnet_route_table_association" "aks" {
-#  subnet_id      = azurerm_subnet.aks.id
-#  route_table_id = azurerm_route_table.default.id
-#}
-
 resource "azurerm_role_assignment" "ra1" {
   scope                = azurerm_resource_group.rg.id
   role_definition_name = "Contributor"
-  principal_id         = var.aks_sp_object_id
+  principal_id         = data.azuread_service_principal.ad.id
 
   depends_on = [azurerm_resource_group.rg]
 }
@@ -154,5 +148,88 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   role_based_access_control {
     enabled = true
+  }
+}
+
+### Kubernetes Ingress
+
+data "azurerm_subscription" "current" {
+}
+
+resource "local_file" "kube_config" {
+  filename = var.k8s_kube_config
+  content  = azurerm_kubernetes_cluster.aks.kube_config_raw
+
+  depends_on = [azurerm_kubernetes_cluster.aks]
+}
+
+resource "helm_release" "agic" {
+  name       = "agic"
+  repository = "https://appgwingress.blob.core.windows.net/ingress-azure-helm-package"
+  chart      = "ingress-azure"
+  version    = "1.2.1"
+
+  depends_on = [
+    local_file.kube_config,
+    azurerm_kubernetes_cluster.aks
+  ]
+
+  set {
+    name  = "verbosityLevel"
+    value = 3
+  }
+
+  set {
+    name  = "appgw.subscriptionId"
+    value = data.azurerm_subscription.current.subscription_id
+  }
+
+  set {
+    name  = "appgw.resourceGroup"
+    value = azurerm_resource_group.rg.name
+  }
+
+  set {
+    name  = "appgw.name"
+    value = azurerm_application_gateway.agw.name
+  }
+
+  set {
+    name  = "appgw.usePrivateIP"
+    value = false
+  }
+
+  set {
+    name  = "appgw.shared"
+    value = false
+  }
+
+  set {
+    name  = "armAuth.type"
+    value = "servicePrincipal"
+  }
+
+  set {
+    name = "armAuth.secretJSON"
+    value = base64encode(<<EOF
+{
+  "clientId": "${var.aks_sp_client_id}",
+  "clientSecret": "${var.aks_sp_client_secret}",
+  "subscriptionId": "${data.azurerm_subscription.current.subscription_id}",
+  "tenantId": "${data.azurerm_subscription.current.tenant_id}",
+  "activeDirectoryEndpointUrl": "https://login.microsoftonline.com",
+  "resourceManagerEndpointUrl": "https://management.azure.com/",
+  "activeDirectoryGraphResourceId": "https://graph.windows.net/",
+  "sqlManagementEndpointUrl": "https://management.core.windows.net:8443/",
+  "galleryEndpointUrl": "https://gallery.azure.com/",
+  "managementEndpointUrl": "https://management.core.windows.net/"
+}
+EOF
+    )
+  }
+
+  set {
+    name  = "rbac.enabled"
+    value = true
   }
 }
